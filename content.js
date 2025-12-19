@@ -846,24 +846,19 @@
 
     // 在頁面上添加快速下載按鈕
     function addDownloadButton() {
-        const pageType = detectPageType();
-        if (pageType !== 'watch') return false;
         if (document.getElementById('hanime-dl-btn')) return true;
+        if (detectPageType() !== 'watch') return false;
+        if (!getVideoId()) return false;
 
-        const videoId = getVideoId();
-        if (!videoId) return false;
+        // 使用實際存在且較早出現的選擇器
+        // .video-buttons-wrapper 比 #downloadBtn (download-btn-late) 更早出現
+        const target = document.querySelector('.video-buttons-wrapper')
+            || document.querySelector('.video-details-wrapper')
+            || document.getElementById('shareBtn-title')?.parentElement
+            || document.getElementById('video-artist-name')?.parentElement
+            || document.getElementById('downloadBtn')?.parentElement;
 
-        const existingDownloadBtn = document.getElementById('downloadBtn');
-        const insertTarget = existingDownloadBtn?.parentElement ||
-            document.querySelector('.video-actions') ||
-            document.querySelector('.player-wrapper') ||
-            document.querySelector('.video-info') ||
-            document.querySelector('h1')?.parentElement;
-
-        if (!insertTarget) return false;
-
-        injectStyles();
-        createModal();
+        if (!target) return false;
 
         const button = document.createElement('button');
         button.id = 'hanime-dl-btn';
@@ -898,34 +893,34 @@
             openModal();
         });
 
-        insertTarget.appendChild(button);
+        target.appendChild(button);
         console.log('Hanime DL button injected!');
         return true;
     }
 
-    // 使用 MutationObserver 監聽 DOM 變化
+    // 快速輪詢注入（簡化版）
     function initButtonInjection() {
+        // 預先注入樣式和 modal
+        injectStyles();
+        createModal();
+
+        // 立即嘗試
         if (addDownloadButton()) return;
 
-        const observer = new MutationObserver((mutations, obs) => {
-            if (addDownloadButton()) {
-                obs.disconnect();
+        // setInterval 快速輪詢 (10ms)
+        let attempts = 0;
+        const interval = setInterval(() => {
+            if (addDownloadButton() || ++attempts > 300) {
+                clearInterval(interval);
             }
-        });
-
-        observer.observe(document.body || document.documentElement, {
-            childList: true,
-            subtree: true
-        });
-
-        setTimeout(() => observer.disconnect(), 5000);
+        }, 10);
     }
 
-    // 頁面載入後立即執行
-    if (document.body) {
-        initButtonInjection();
+    // 根據載入狀態執行
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initButtonInjection, { once: true });
     } else {
-        document.addEventListener('DOMContentLoaded', initButtonInjection);
+        initButtonInjection();
     }
 
 })();
