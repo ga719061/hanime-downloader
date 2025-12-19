@@ -6,6 +6,9 @@
 
     console.log('Hanime Downloader content script loaded');
 
+    // 當前下載狀態
+    let currentDownloads = [];
+
     // 樣式注入
     function injectStyles() {
         if (document.getElementById('hanime-dl-styles')) return;
@@ -39,8 +42,8 @@
                 background: linear-gradient(145deg, #1a1a2e 0%, #16213e 100%);
                 border-radius: 16px;
                 padding: 24px;
-                min-width: 320px;
-                max-width: 400px;
+                min-width: 360px;
+                max-width: 420px;
                 max-height: 80vh;
                 overflow-y: auto;
                 box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 40px rgba(102, 126, 234, 0.2);
@@ -137,8 +140,12 @@
             }
             
             .hanime-dl-item.downloading {
-                opacity: 0.6;
-                pointer-events: none;
+                cursor: default;
+                transform: none;
+            }
+            
+            .hanime-dl-item.downloading:hover {
+                transform: none;
             }
             
             .hanime-dl-quality {
@@ -186,6 +193,128 @@
             .hanime-dl-retry:hover {
                 background: rgba(239, 68, 68, 0.3);
             }
+
+            /* 進度條樣式 */
+            .hanime-dl-progress-container {
+                margin-top: 10px;
+            }
+
+            .hanime-dl-progress-bar {
+                width: 100%;
+                height: 6px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 3px;
+                overflow: hidden;
+            }
+
+            .hanime-dl-progress-fill {
+                height: 100%;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 3px;
+                transition: width 0.3s ease;
+                position: relative;
+            }
+
+            .hanime-dl-progress-fill::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(
+                    90deg,
+                    transparent,
+                    rgba(255, 255, 255, 0.3),
+                    transparent
+                );
+                animation: shimmer 1.5s infinite;
+            }
+
+            @keyframes shimmer {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(100%); }
+            }
+
+            .hanime-dl-progress-info {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 6px;
+                font-size: 11px;
+                color: #718096;
+            }
+
+            .hanime-dl-progress-percent {
+                color: #667eea;
+                font-weight: 600;
+            }
+
+            .hanime-dl-progress-speed {
+                color: #10b981;
+            }
+
+            .hanime-dl-cancel-btn {
+                margin-top: 8px;
+                padding: 6px 12px;
+                background: rgba(239, 68, 68, 0.2);
+                border: 1px solid rgba(239, 68, 68, 0.3);
+                border-radius: 6px;
+                color: #ef4444;
+                font-size: 12px;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .hanime-dl-cancel-btn:hover {
+                background: rgba(239, 68, 68, 0.3);
+            }
+
+            /* 下載狀態區塊 */
+            .hanime-dl-active-downloads {
+                margin-bottom: 16px;
+                padding: 16px;
+                background: rgba(102, 126, 234, 0.1);
+                border: 1px solid rgba(102, 126, 234, 0.2);
+                border-radius: 10px;
+            }
+
+            .hanime-dl-active-title {
+                font-size: 13px;
+                font-weight: 600;
+                color: #667eea;
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .hanime-dl-active-item {
+                padding: 10px;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 8px;
+                margin-bottom: 8px;
+            }
+
+            .hanime-dl-active-item:last-child {
+                margin-bottom: 0;
+            }
+
+            .hanime-dl-active-name {
+                font-size: 12px;
+                color: #e2e8f0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                margin-bottom: 8px;
+            }
+
+            .hanime-dl-complete {
+                color: #10b981;
+            }
+
+            .hanime-dl-failed {
+                color: #ef4444;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -231,6 +360,23 @@
         return { videoId, title, thumbnail, pageType, url: window.location.href };
     }
 
+    // 格式化檔案大小
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // 格式化時間
+    function formatTime(seconds) {
+        if (!seconds || seconds <= 0) return '--:--';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
     // 創建下載選單 Modal
     function createModal() {
         if (document.getElementById('hanime-dl-modal')) return;
@@ -242,6 +388,12 @@
                 <div class="hanime-dl-header">
                     <h3 class="hanime-dl-title">🚀 選擇畫質下載</h3>
                     <button class="hanime-dl-close">✕</button>
+                </div>
+                <div class="hanime-dl-active-downloads" style="display: none;">
+                    <div class="hanime-dl-active-title">
+                        <span>📥</span> 下載中
+                    </div>
+                    <div class="hanime-dl-active-list"></div>
                 </div>
                 <div class="hanime-dl-content">
                     <div class="hanime-dl-loading">
@@ -269,6 +421,7 @@
         if (modal) {
             modal.classList.add('show');
             loadQualities();
+            updateActiveDownloadsUI();
         }
     }
 
@@ -280,7 +433,70 @@
         }
     }
 
-    // 直接從下載頁面獲取畫質（在 content script 中執行，有正確的 cookie）
+    // 更新活動下載 UI
+    function updateActiveDownloadsUI() {
+        const container = document.querySelector('.hanime-dl-active-downloads');
+        const list = document.querySelector('.hanime-dl-active-list');
+
+        if (!container || !list) return;
+
+        if (currentDownloads.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        list.innerHTML = currentDownloads.map(dl => {
+            let statusClass = '';
+            let statusText = '';
+
+            if (dl.state === 'complete') {
+                statusClass = 'hanime-dl-complete';
+                statusText = '✓ 完成';
+            } else if (dl.state === 'failed' || dl.state === 'cancelled') {
+                statusClass = 'hanime-dl-failed';
+                statusText = '✕ 失敗';
+            } else {
+                statusText = `${dl.progress}%`;
+            }
+
+            return `
+                <div class="hanime-dl-active-item" data-id="${dl.downloadId}">
+                    <div class="hanime-dl-active-name">${dl.filename}</div>
+                    <div class="hanime-dl-progress-bar">
+                        <div class="hanime-dl-progress-fill" style="width: ${dl.progress}%"></div>
+                    </div>
+                    <div class="hanime-dl-progress-info">
+                        <span class="hanime-dl-progress-percent ${statusClass}">${statusText}</span>
+                        ${dl.state === 'in_progress' ? `
+                            <span class="hanime-dl-progress-speed">${formatBytes(dl.speed || 0)}/s</span>
+                        ` : ''}
+                    </div>
+                    ${dl.state === 'in_progress' ? `
+                        <button class="hanime-dl-cancel-btn" data-id="${dl.downloadId}">取消下載</button>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+
+        // 綁定取消按鈕
+        list.querySelectorAll('.hanime-dl-cancel-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const downloadId = parseInt(btn.dataset.id);
+                try {
+                    await chrome.runtime.sendMessage({
+                        action: 'cancelDownload',
+                        downloadId
+                    });
+                } catch (error) {
+                    console.error('Failed to cancel download:', error);
+                }
+            });
+        });
+    }
+
+    // 直接從下載頁面獲取畫質
     async function fetchQualitiesFromDownloadPage(videoId) {
         const downloadPageUrl = `https://hanime1.me/download?v=${videoId}`;
         console.log('Fetching download page:', downloadPageUrl);
@@ -302,25 +518,21 @@
 
             const qualities = [];
 
-            // 找所有表格
             const tables = doc.querySelectorAll('table');
             console.log('Found tables:', tables.length);
 
             tables.forEach(table => {
                 const rows = table.querySelectorAll('tr');
                 rows.forEach((row, idx) => {
-                    // 跳過表頭
                     if (row.querySelector('th')) return;
 
                     const cells = row.querySelectorAll('td');
                     console.log(`Row ${idx}: ${cells.length} cells`);
 
                     if (cells.length >= 3) {
-                        // 嘗試多種結構
                         let quality = '';
                         let url = '';
 
-                        // 找解析度文字 (通常包含 "p" 如 720p, 1080p)
                         for (let i = 0; i < cells.length; i++) {
                             const text = cells[i]?.textContent?.trim();
                             if (text && /\d+p/i.test(text)) {
@@ -329,7 +541,6 @@
                             }
                         }
 
-                        // 找下載連結
                         const links = row.querySelectorAll('a[href]');
                         for (const link of links) {
                             const href = link.href || link.getAttribute('href');
@@ -339,25 +550,32 @@
                             }
                         }
 
-                        // 如果沒找到解析度文字，用第一個 cell
                         if (!quality && cells[0]) {
                             quality = cells[0].textContent?.trim() || '未知畫質';
                         }
 
                         if (url) {
-                            // 確保完整 URL
                             if (url.startsWith('/')) {
                                 url = 'https://hanime1.me' + url;
                             }
 
-                            console.log('Found:', quality, url);
-                            qualities.push({ quality, url });
+                            // 獲取檔案大小
+                            let size = '';
+                            for (let i = 0; i < cells.length; i++) {
+                                const text = cells[i]?.textContent?.trim();
+                                if (text && /\d+(\.\d+)?\s*(MB|GB|KB)/i.test(text)) {
+                                    size = text;
+                                    break;
+                                }
+                            }
+
+                            console.log('Found:', quality, url, size);
+                            qualities.push({ quality, url, size });
                         }
                     }
                 });
             });
 
-            // 備選：找所有類似下載按鈕的連結
             if (qualities.length === 0) {
                 const allLinks = doc.querySelectorAll('a.btn, a[download], a[href*="download"]');
                 console.log('Fallback links:', allLinks.length);
@@ -387,13 +605,11 @@
     function getVideoSourcesFromPage() {
         const qualities = [];
 
-        // 方法 1: 從 video source 標籤
         const sources = document.querySelectorAll('video source');
         sources.forEach(source => {
             const url = source.src || source.getAttribute('src');
             const type = source.type || 'video/mp4';
             if (url) {
-                // 嘗試從 URL 判斷畫質
                 let quality = '影片';
                 if (url.includes('1080')) quality = '1080p';
                 else if (url.includes('720')) quality = '720p';
@@ -404,7 +620,6 @@
             }
         });
 
-        // 方法 2: 從 video 標籤的 src
         const video = document.querySelector('video');
         if (video && video.src) {
             let quality = '影片';
@@ -413,11 +628,9 @@
             qualities.push({ quality, url: video.src });
         }
 
-        // 方法 3: 從頁面 script 中提取
         const scripts = document.querySelectorAll('script');
         scripts.forEach(script => {
             const content = script.textContent || '';
-            // 匹配類似 source: "url" 或 src: "url" 的模式
             const matches = content.match(/(?:source|src|video_url|videoUrl|url)\s*[=:]\s*["']([^"']+\.mp4[^"']*)/gi);
             if (matches) {
                 matches.forEach(match => {
@@ -429,7 +642,6 @@
             }
         });
 
-        // 去重
         const unique = [];
         const seen = new Set();
         qualities.forEach(q => {
@@ -467,11 +679,9 @@
         try {
             let qualities = [];
 
-            // 方法 1: 先嘗試從當前頁面直接獲取影片源
             qualities = getVideoSourcesFromPage();
             console.log('Sources from current page:', qualities.length);
 
-            // 方法 2: 如果沒找到，從下載頁面獲取
             if (qualities.length === 0) {
                 qualities = await fetchQualitiesFromDownloadPage(videoId);
                 console.log('Sources from download page:', qualities.length);
@@ -481,13 +691,13 @@
                 throw new Error('找不到任何下載選項');
             }
 
-            // 渲染畫質列表
             content.innerHTML = `
                 <div class="hanime-dl-list">
                     ${qualities.map((q, i) => `
                         <div class="hanime-dl-item" data-url="${q.url}" data-quality="${q.quality}">
                             <div>
                                 <div class="hanime-dl-quality">${q.quality}</div>
+                                ${q.size ? `<div class="hanime-dl-size">${q.size}</div>` : ''}
                             </div>
                             <div class="hanime-dl-icon">⬇</div>
                         </div>
@@ -495,7 +705,6 @@
                 </div>
             `;
 
-            // 綁定點擊事件
             content.querySelectorAll('.hanime-dl-item').forEach(item => {
                 item.addEventListener('click', () => {
                     downloadVideo(item, videoInfo);
@@ -520,12 +729,34 @@
         const url = item.dataset.url;
         const quality = item.dataset.quality;
 
+        // 防止重複點擊
+        if (item.classList.contains('downloading')) return;
+
         item.classList.add('downloading');
+
+        // 添加進度 UI
+        const progressHtml = `
+            <div class="hanime-dl-progress-container">
+                <div class="hanime-dl-progress-bar">
+                    <div class="hanime-dl-progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="hanime-dl-progress-info">
+                    <span class="hanime-dl-progress-percent">0%</span>
+                    <span class="hanime-dl-progress-speed">準備中...</span>
+                </div>
+            </div>
+        `;
+
+        const existingProgress = item.querySelector('.hanime-dl-progress-container');
+        if (existingProgress) {
+            existingProgress.remove();
+        }
+        item.insertAdjacentHTML('beforeend', progressHtml);
+
         item.querySelector('.hanime-dl-icon').textContent = '⏳';
 
         try {
             let title = videoInfo?.title || 'video';
-            // 移除網站後綴
             title = title
                 .replace(/\s*[-–—]\s*H動漫.*$/i, '')
                 .replace(/\s*[-–—]\s*Hanime1\.me.*$/i, '')
@@ -535,7 +766,6 @@
             const cleanTitle = title.replace(/[<>:"/\\|?*]/g, '_').substring(0, 100);
             const filename = `${cleanTitle}_${quality.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`;
 
-            // 請求 background 下載
             const response = await chrome.runtime.sendMessage({
                 action: 'download',
                 data: { url, filename, videoId: videoInfo?.videoId }
@@ -544,7 +774,9 @@
             if (response.success) {
                 item.querySelector('.hanime-dl-icon').textContent = '✓';
                 item.querySelector('.hanime-dl-icon').style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
-                setTimeout(closeModal, 1500);
+                item.querySelector('.hanime-dl-progress-percent').textContent = '下載已開始';
+                item.querySelector('.hanime-dl-progress-percent').classList.add('hanime-dl-complete');
+                item.querySelector('.hanime-dl-progress-speed').textContent = '';
             } else {
                 throw new Error(response.error || '下載失敗');
             }
@@ -555,19 +787,60 @@
             item.querySelector('.hanime-dl-icon').textContent = '❌';
             item.querySelector('.hanime-dl-icon').style.background = 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)';
 
+            const progressContainer = item.querySelector('.hanime-dl-progress-container');
+            if (progressContainer) {
+                progressContainer.innerHTML = `<div style="color: #ef4444; font-size: 12px; margin-top: 8px;">❌ ${error.message}</div>`;
+            }
+
             setTimeout(() => {
                 item.querySelector('.hanime-dl-icon').textContent = '⬇';
                 item.querySelector('.hanime-dl-icon').style.background = '';
-            }, 3000);
+                const pc = item.querySelector('.hanime-dl-progress-container');
+                if (pc) pc.remove();
+            }, 5000);
         }
     }
 
-    // 監聽來自 popup 的訊息
+    // 監聽來自 background 的進度更新
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message.action === 'getPageInfo') {
             const info = getVideoInfo();
             sendResponse({ success: true, data: info });
         }
+
+        if (message.action === 'downloadProgress') {
+            currentDownloads = message.downloads || [];
+            updateActiveDownloadsUI();
+
+            // 更新列表中對應項目的進度
+            currentDownloads.forEach(dl => {
+                const items = document.querySelectorAll(`.hanime-dl-item.downloading`);
+                items.forEach(item => {
+                    const progressFill = item.querySelector('.hanime-dl-progress-fill');
+                    const progressPercent = item.querySelector('.hanime-dl-progress-percent');
+                    const progressSpeed = item.querySelector('.hanime-dl-progress-speed');
+
+                    if (progressFill && dl.progress !== undefined) {
+                        progressFill.style.width = `${dl.progress}%`;
+                    }
+                    if (progressPercent) {
+                        if (dl.state === 'complete') {
+                            progressPercent.textContent = '✓ 完成';
+                            progressPercent.classList.add('hanime-dl-complete');
+                        } else if (dl.state === 'failed') {
+                            progressPercent.textContent = '✕ 失敗';
+                            progressPercent.classList.add('hanime-dl-failed');
+                        } else {
+                            progressPercent.textContent = `${dl.progress}%`;
+                        }
+                    }
+                    if (progressSpeed && dl.speed) {
+                        progressSpeed.textContent = `${formatBytes(dl.speed)}/s`;
+                    }
+                });
+            });
+        }
+
         return true;
     });
 
@@ -580,7 +853,6 @@
         const videoId = getVideoId();
         if (!videoId) return false;
 
-        // 尋找插入位置
         const existingDownloadBtn = document.getElementById('downloadBtn');
         const insertTarget = existingDownloadBtn?.parentElement ||
             document.querySelector('.video-actions') ||
@@ -590,7 +862,6 @@
 
         if (!insertTarget) return false;
 
-        // 注入樣式和創建 Modal
         injectStyles();
         createModal();
 
@@ -632,15 +903,13 @@
         return true;
     }
 
-    // 使用 MutationObserver 監聽 DOM 變化，加速按鈕插入
+    // 使用 MutationObserver 監聽 DOM 變化
     function initButtonInjection() {
-        // 立即嘗試插入
         if (addDownloadButton()) return;
 
-        // 如果失敗，使用 MutationObserver 監聽 DOM 變化
         const observer = new MutationObserver((mutations, obs) => {
             if (addDownloadButton()) {
-                obs.disconnect(); // 成功後停止監聽
+                obs.disconnect();
             }
         });
 
@@ -649,7 +918,6 @@
             subtree: true
         });
 
-        // 5秒後超時停止
         setTimeout(() => observer.disconnect(), 5000);
     }
 

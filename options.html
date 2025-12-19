@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hanime Downloader 設定</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: #718096;
+      font-size: 14px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title .icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: #e2e8f0;
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: #718096;
+      margin-top: 6px;
+    }
+
+    .form-select,
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .form-select:focus,
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+
+    .form-select option {
+      background: #1a1a2e;
+      color: #fff;
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .toggle-group:last-child {
+      border-bottom: none;
+    }
+
+    .toggle-label {
+      font-size: 14px;
+      color: #e2e8f0;
+    }
+
+    .toggle-desc {
+      font-size: 12px;
+      color: #718096;
+      margin-top: 4px;
+    }
+
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 26px;
+      transition: all 0.3s;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: all 0.3s;
+    }
+
+    .toggle input:checked + .toggle-slider {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .toggle input:checked + .toggle-slider:before {
+      transform: translateX(22px);
+    }
+
+    .btn-save {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-save:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-save:active {
+      transform: translateY(0);
+    }
+
+    .btn-save.success {
+      background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    }
+
+    .template-vars {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .template-var {
+      padding: 6px 12px;
+      background: rgba(102, 126, 234, 0.2);
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      border-radius: 6px;
+      font-size: 12px;
+      color: #667eea;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: monospace;
+    }
+
+    .template-var:hover {
+      background: rgba(102, 126, 234, 0.3);
+    }
+
+    .preview {
+      margin-top: 10px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      font-size: 12px;
+      color: #a0aec0;
+    }
+
+    .preview-label {
+      font-size: 11px;
+      color: #718096;
+      margin-bottom: 4px;
+    }
+
+    .preview-value {
+      font-family: monospace;
+      color: #10b981;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 500;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>⚙️ Hanime Downloader 設定</h1>
+      <p>自訂您的下載偏好設定</p>
+    </header>
+
+    <!-- 下載設定 -->
+    <div class="card">
+      <h2 class="card-title">
+        <span class="icon">📥</span>
+        下載設定
+      </h2>
+
+      <div class="form-group">
+        <label class="form-label">預設畫質</label>
+        <select id="defaultQuality" class="form-select">
+          <option value="auto">自動選擇最高畫質</option>
+          <option value="1080p">1080p</option>
+          <option value="720p">720p</option>
+          <option value="480p">480p</option>
+          <option value="360p">360p</option>
+        </select>
+        <p class="form-hint">當選擇的畫質不可用時，將自動降級到最接近的可用畫質</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">檔案命名規則</label>
+        <input type="text" id="filenameTemplate" class="form-input" value="{title}_{quality}" placeholder="{title}_{quality}">
+        <p class="form-hint">使用以下變數自訂檔案名稱格式</p>
+        <div class="template-vars">
+          <span class="template-var" data-var="{title}">{title}</span>
+          <span class="template-var" data-var="{id}">{id}</span>
+          <span class="template-var" data-var="{quality}">{quality}</span>
+        </div>
+        <div class="preview">
+          <div class="preview-label">預覽：</div>
+          <div class="preview-value" id="filenamePreview">example_video_1080p.mp4</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通知設定 -->
+    <div class="card">
+      <h2 class="card-title">
+        <span class="icon">🔔</span>
+        通知設定
+      </h2>
+
+      <div class="toggle-group">
+        <div>
+          <div class="toggle-label">下載完成通知</div>
+          <div class="toggle-desc">當影片下載完成時顯示系統通知</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="showNotifications" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 儲存按鈕 -->
+    <button class="btn-save" id="saveBtn">
+      <span>💾</span>
+      <span>儲存設定</span>
+    </button>
+  </div>
+
+  <div class="toast" id="toast">設定已儲存！</div>
+
+  <script src="options.js"></script>
+</body>
+</html>
