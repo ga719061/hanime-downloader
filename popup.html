@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hanime Downloader</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="url(#gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7 10L12 15L17 10" stroke="url(#gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 15V3" stroke="url(#gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="gradient" x1="3" y1="3" x2="21" y2="21">
+              <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <h1>Hanime Downloader</h1>
+      </div>
+    </header>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="loading-state">
+      <div class="spinner"></div>
+      <p>正在載入影片資訊...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="error-state hidden">
+      <div class="error-icon">⚠️</div>
+      <h3>無法載入影片</h3>
+      <p id="error-message">請確保您在 hanime1.me 的影片頁面上</p>
+      <button class="btn-secondary" onclick="window.close()">關閉</button>
+    </div>
+
+    <!-- Video Info -->
+    <div id="video-info" class="video-info hidden">
+      <div class="video-thumbnail">
+        <img id="thumbnail" src="" alt="Video thumbnail">
+        <div class="thumbnail-overlay">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="rgba(255,255,255,0.2)"/>
+            <path d="M10 8L16 12L10 16V8Z" fill="white"/>
+          </svg>
+        </div>
+      </div>
+      
+      <div class="video-details">
+        <h2 id="video-title">Loading...</h2>
+        <p id="video-id" class="video-id"></p>
+      </div>
+    </div>
+
+    <!-- Quality Selection -->
+    <div id="quality-section" class="quality-section hidden">
+      <h3 class="section-title">選擇解析度</h3>
+      <div id="quality-list" class="quality-list">
+        <!-- Quality cards will be dynamically inserted here -->
+      </div>
+    </div>
+
+    <!-- Download Button -->
+    <div id="download-section" class="download-section hidden">
+      <button id="download-btn" class="btn-primary">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>開始下載</span>
+      </button>
+    </div>
+
+    <!-- Success State -->
+    <div id="success-state" class="success-state hidden">
+      <div class="success-icon">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" stroke="url(#success-gradient)" stroke-width="2"/>
+          <path d="M8 12L11 15L16 9" stroke="url(#success-gradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="success-gradient" x1="2" y1="2" x2="22" y2="22">
+              <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#34d399;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <h3>下載已開始！</h3>
+      <p>影片正在下載中，請檢查瀏覽器下載列表</p>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Made with ❤️ for anime lovers</p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
